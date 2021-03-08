@@ -19,7 +19,17 @@ def clean_sneaker_data_for_ml(df):
     df['retail_price'] = df['retail_price'].str.replace(',','')
     df['retail_price'] = df['retail_price'].astype(int)
 
-    df['profit'] = df['average_sale_price'] - df['retail_price']
+    # drop unused columns
+
+    df = df.drop(['url'
+            , 'name'
+            , 'ticker'
+            , 'image_path'
+            , 'release_date'
+            , 'number_of_sales'
+            , 'price_premium'
+            , 'style_code'
+            , 'colorway'], axis=1)
 
     return df
 
@@ -50,6 +60,11 @@ name_dummies = name_dummies[['(PS)','(GS)','(W)','(TD)','High','Mid','Low']]
 # drop columns that don't have more than 5% 1s in the column
 #print(relevant_columns := name_dummies.loc[:, name_dummies.eq(1).sum().gt(name_dummies.shape[0]*.05)])
 
-print(final := pd.concat([merged_df, name_dummies],axis=1))
+final = pd.concat([merged_df, name_dummies], axis=1)
 final = clean_sneaker_data_for_ml(final)
+print(final)
 final.to_csv('final_aj1.csv')
+
+ix = final.corr().sort_values('average_sale_price', ascending=False).index
+df_sorted = final.loc[:, ix]
+print(df_sorted)
