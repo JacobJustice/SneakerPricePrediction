@@ -65,6 +65,7 @@ final = clean_sneaker_data_for_ml(final)
 print(final)
 final.to_csv('final_aj1.csv')
 
+# sort by correlation
 ix = final.corr().sort_values('average_sale_price', ascending=False).index
 df_sorted = final.loc[:, ix]
 print(df_sorted)
