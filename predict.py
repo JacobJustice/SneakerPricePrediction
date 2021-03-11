@@ -1,6 +1,9 @@
 import pandas as pd
 import argparse
 import sys
+from sklearn import preprocessing
+from sklearn.utils import shuffle
+from sklearn.linear_model import LinearRegression
 
 def clean_sneaker_data_for_ml(df):
     # drop duplicates
@@ -19,6 +22,8 @@ def clean_sneaker_data_for_ml(df):
     df['retail_price'] = df['retail_price'].str.replace(',','')
     df['retail_price'] = df['retail_price'].astype(int)
 
+    df = df[df['pixel0_r'].notna()]
+
     # drop unused columns
 
     df = df.drop(['url'
@@ -29,43 +34,94 @@ def clean_sneaker_data_for_ml(df):
             , 'number_of_sales'
             , 'price_premium'
             , 'style_code'
+            , 'retail_price'
             , 'colorway'], axis=1)
+
 
     return df
 
+# INTENDED TO BE USED ON TRAINING SET
+# 
+# normalizes every column except average_sale_price and returns an unlabeled dataframe
+def normalize_pixels(training_df, min_max_scaler=None):
+    x = training_df.drop('average_sale_price',axis=1).values
+    if (min_max_scaler is None):
+        min_max_scaler = preprocessing.MinMaxScaler()
+
+    x_scaled = min_max_scaler.fit_transform(x)
+    #print(x_scaled)
+    scaled_training_df = pd.DataFrame(x_scaled)
+
+    scaled_training_df['average_sale_price'] = training_df['average_sale_price']
+    return scaled_training_df, min_max_scaler
+
+
 def load_df(path_to_csv):
     return pd.read_csv(path_to_csv)
+
 
 # merges on ticker
 def merge_df(df, flat_df):
     out_df = pd.merge(df, flat_df, on='ticker', how='outer'),
     return out_df
 
-parser = argparse.ArgumentParser(description='Auto-crop a directory of images')
-parser.add_argument('-df','--dataframe', required=True, help='dataframe containing scraped shoe data')
-parser.add_argument('-fdf','--flat_dataframe', required=True, help='dataframe containing image data')
 
-args = parser.parse_args(sys.argv[1:])
+def make_training_and_validation(shuffle_seed=1234):
+    parser = argparse.ArgumentParser(description='Auto-crop a directory of images')
+    parser.add_argument('-df','--dataframe', required=True, help='dataframe containing scraped shoe data')
+    parser.add_argument('-fdf','--flat_dataframe', required=True, help='dataframe containing image data')
 
-df = load_df(args.dataframe)
-flat_df = load_df(args.flat_dataframe)
+    args = parser.parse_args(sys.argv[1:])
 
-merged_df = merge_df(df, flat_df)[0]
-#merged_df = clean_sneaker_data_for_ml(merged_df)
+    df = load_df(args.dataframe)
+    flat_df = load_df(args.flat_dataframe)
 
-# make dummie columns
-name_dummies = merged_df['name'].str.get_dummies(" ")
-name_dummies = name_dummies[['(PS)','(GS)','(W)','(TD)','High','Mid','Low']]
+    merged_df = merge_df(df, flat_df)[0]
+    #merged_df = clean_sneaker_data_for_ml(merged_df)
 
-# drop columns that don't have more than 5% 1s in the column
-#print(relevant_columns := name_dummies.loc[:, name_dummies.eq(1).sum().gt(name_dummies.shape[0]*.05)])
+    # make dummie columns
+    name_dummies = merged_df['name'].str.get_dummies(" ")
+    name_dummies = name_dummies[['(PS)','(GS)','(W)','(TD)','High','Mid','Low']]
 
-final = pd.concat([merged_df, name_dummies], axis=1)
-final = clean_sneaker_data_for_ml(final)
-print(final)
-final.to_csv('final_aj1.csv')
+    # drop columns that don't have more than 5% 1s in the column
+    #print(relevant_columns := name_dummies.loc[:, name_dummies.eq(1).sum().gt(name_dummies.shape[0]*.05)])
 
-# sort by correlation
-ix = final.corr().sort_values('average_sale_price', ascending=False).index
-df_sorted = final.loc[:, ix]
-print(df_sorted)
+    final = pd.concat([merged_df, name_dummies], axis=1)
+    final = clean_sneaker_data_for_ml(final)
+    final = shuffle(final, random_state=shuffle_seed)
+
+    final_validation = final[0:int(len(final)*.1)]
+    final_validation.to_csv('validation_aj1.csv', index=False)
+
+    final_training = final[int(len(final)*.1):]
+    final_training.to_csv('training_aj1.csv', index=False)
+
+    print(final)
+    final.to_csv('final_aj1.csv', index=False)
+
+#uncomment if you want to make a new training and validation set
+#make_training_and_validation()
+
+training = load_df('./training_aj1.csv')
+
+# normalize training set
+training, min_max_scaler = normalize_pixels(training)
+
+# create test set
+test = training[0:int(len(training)*.1)]
+
+training_y = training['average_sale_price'].values
+training_x = training.drop('average_sale_price', axis=1).values
+
+test_y = test['average_sale_price'].values
+test_x = test.drop('average_sale_price', axis=1).values
+
+reg = LinearRegression().fit(training_x, training_y)
+
+test_y_hat = reg.predict(test_x)
+print(test_y_hat)
+
+test_y_diff = (test_y)-(test_y_hat)
+print(test_y_diff)
+
+print(reg.score(test_x, test_y))
