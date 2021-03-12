@@ -128,9 +128,22 @@ test_y = test['average_sale_price']
 #pca_df_x = pca.fit_transform(df_x, df_y)
 #print("n_components", pca.n_components_)
 #print("COVARIANCE", pca.get_covariance())
+#
+#svr = SVR()
+#param_dist = {
+    #'kernel':['linear','poly'],
+    #'gamma':['scale','auto'],
+    #'degree':[1,2,3,4,5,6,7],
+    #'C':[.0001,.001,.01,.1,1,10,100,1000],
+    #'epsilon':[.0001,.001,.01,.1,1,10,100,1000]
+#}
 
-svr = SVR(kernel='poly', degree=5, C=1)
-svr.fit(training_x, training_y)
+#gscv = GridSearchCV(estimator=svr, param_grid=param_dist, cv=7,
+#                    verbose=3)
+#gscv.fit(df_x, df_y)
 
-pprint(scores := cross_val_score(svr, df_x, df_y, cv=10))
+svr = SVR(C=1, degree=5, epsilon=10, gamma='scale', kernel='poly')
+
+pprint(scores := cross_val_score(svr, df_x, df_y, cv=7))
 print(np.array(scores).mean())
+#print(gscv.best_params_)
