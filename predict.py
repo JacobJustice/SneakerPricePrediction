@@ -1,9 +1,10 @@
+from pprint import pprint
 import pandas as pd
 import argparse
 import sys
+import numpy as np
 from sklearn import preprocessing
 from sklearn.utils import shuffle
-from sklearn.linear_model import LinearRegression
 
 def clean_sneaker_data_for_ml(df):
     # drop duplicates
@@ -98,30 +99,38 @@ def make_training_and_validation(shuffle_seed=1234):
 
     print(final)
     final.to_csv('final_aj1.csv', index=False)
-
 #uncomment if you want to make a new training and validation set
 #make_training_and_validation()
 
-training = load_df('./training_aj1.csv')
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import cross_val_score
+from sklearn.decomposition import PCA
+from sklearn.svm import SVR
 
+df = load_df('./training_aj1.csv')
 # normalize training set
-training, min_max_scaler = normalize_pixels(training)
+df, min_max_scaler = normalize_pixels(df)
+df_x = df.drop('average_sale_price', axis=1)
+df_y = df['average_sale_price']
 
 # create test set
-test = training[0:int(len(training)*.1)]
+test = df[0:int(len(df)*.2)]
+training = df[int(len(df)*.2):]
 
-training_y = training['average_sale_price'].values
-training_x = training.drop('average_sale_price', axis=1).values
+training_x = training.drop('average_sale_price', axis=1)
+training_y = training['average_sale_price']
 
-test_y = test['average_sale_price'].values
-test_x = test.drop('average_sale_price', axis=1).values
+test_x = test.drop('average_sale_price', axis=1)
+test_y = test['average_sale_price']
 
-reg = LinearRegression().fit(training_x, training_y)
+#pca = PCA(n_components='mle')
+#pca_df_x = pca.fit_transform(df_x, df_y)
+#print("n_components", pca.n_components_)
+#print("COVARIANCE", pca.get_covariance())
 
-test_y_hat = reg.predict(test_x)
-print(test_y_hat)
+svr = SVR(kernel='poly', degree=5, C=1)
+svr.fit(training_x, training_y)
 
-test_y_diff = (test_y)-(test_y_hat)
-print(test_y_diff)
-
-print(reg.score(test_x, test_y))
+pprint(scores := cross_val_score(svr, df_x, df_y, cv=10))
+print(np.array(scores).mean())
