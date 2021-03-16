@@ -29,13 +29,11 @@ def clean_sneaker_data_for_ml(df):
 
     df = df.drop(['url'
             , 'name'
-            , 'ticker'
             , 'image_path'
             , 'release_date'
             , 'number_of_sales'
             , 'price_premium'
             , 'style_code'
-            , 'retail_price'
             , 'colorway'], axis=1)
 
 
@@ -45,7 +43,7 @@ def clean_sneaker_data_for_ml(df):
 # 
 # normalizes every column except average_sale_price and returns an unlabeled dataframe
 def normalize_pixels(training_df, min_max_scaler=None):
-    x = training_df.drop('average_sale_price',axis=1).values
+    x = training_df.drop(['average_sale_price','retail_price','ticker'],axis=1).values
     if (min_max_scaler is None):
         min_max_scaler = preprocessing.MinMaxScaler()
 
@@ -54,6 +52,8 @@ def normalize_pixels(training_df, min_max_scaler=None):
     scaled_training_df = pd.DataFrame(x_scaled)
 
     scaled_training_df['average_sale_price'] = training_df['average_sale_price']
+    scaled_training_df['retail_price'] = training_df['retail_price']
+    scaled_training_df['ticker'] = training_df['ticker']
     return scaled_training_df, min_max_scaler
 
 
@@ -111,17 +111,17 @@ from sklearn.svm import SVR
 df = load_df('./training_aj1.csv')
 # normalize training set
 df, min_max_scaler = normalize_pixels(df)
-df_x = df.drop('average_sale_price', axis=1)
+df_x = df.drop(['average_sale_price','retail_price','ticker'], axis=1)
 df_y = df['average_sale_price']
 
 # create test set
 test = df[0:int(len(df)*.2)]
 training = df[int(len(df)*.2):]
 
-training_x = training.drop('average_sale_price', axis=1)
+training_x = training.drop(['average_sale_price','retail_price','ticker'], axis=1)
 training_y = training['average_sale_price']
 
-test_x = test.drop('average_sale_price', axis=1)
+test_x = test.drop(['average_sale_price','retail_price','ticker'], axis=1)
 test_y = test['average_sale_price']
 
 #pca = PCA(n_components='mle')
@@ -141,9 +141,24 @@ test_y = test['average_sale_price']
 #gscv = GridSearchCV(estimator=svr, param_grid=param_dist, cv=7,
 #                    verbose=3)
 #gscv.fit(df_x, df_y)
-
+#
 svr = SVR(C=1, degree=5, epsilon=10, gamma='scale', kernel='poly')
-
+#
 pprint(scores := cross_val_score(svr, df_x, df_y, cv=7))
 print(np.array(scores).mean())
-#print(gscv.best_params_)
+
+# SVR 
+#svr.fit(training_x, training_y)
+#test_y_hat = svr.predict(test_x)
+#test_y_hat_df = pd.DataFrame(test_y_hat)
+#test_y_hat_df['average_sale_price_hat'] = test_y_hat_df[0]
+#test_y_hat_df = test_y_hat_df.drop(0,axis=1)
+#test_y_hat_df['ticker'] = test['ticker']
+#
+#print(test_y_hat_df)
+#print(test_x)
+#print(test)
+#out_df = test_y_hat_df.merge(test.drop('average_sale_price',axis=1),on=None)
+#out_df.to_csv('./test_y_hat')
+#print(out_df)
+
