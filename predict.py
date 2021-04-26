@@ -5,6 +5,7 @@ import sys
 import numpy as np
 from sklearn import preprocessing
 from sklearn.utils import shuffle
+from autokeras import StructuredDataRegressor
 
 def clean_sneaker_data_for_ml(df):
     # drop duplicates
@@ -99,66 +100,61 @@ def make_training_and_validation(shuffle_seed=1234):
 
     print(final)
     final.to_csv('final_aj1.csv', index=False)
-#uncomment if you want to make a new training and validation set
-#make_training_and_validation()
 
-from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import GridSearchCV
-from sklearn.model_selection import cross_val_score
-from sklearn.decomposition import PCA
-from sklearn.svm import SVR
+def main():
+    #uncomment if you want to make a new training and validation set
+    #make_training_and_validation()
 
-df = load_df('./training_aj1.csv')
-# normalize training set
-df, min_max_scaler = normalize_pixels(df)
-df_x = df.drop(['average_sale_price','retail_price','ticker'], axis=1)
-df_y = df['average_sale_price']
+    from sklearn.linear_model import LinearRegression
+    from sklearn.model_selection import GridSearchCV
+    from sklearn.model_selection import cross_val_score
+    from sklearn.decomposition import PCA
+    from sklearn.svm import SVR
 
-# create test set
-test = df[0:int(len(df)*.2)]
-training = df[int(len(df)*.2):]
+    df = load_df('./training_aj1.csv')
+    # normalize training set
+    df, min_max_scaler = normalize_pixels(df)
+    df_x = df.drop(['average_sale_price','ticker'], axis=1)
+    df_y = df['average_sale_price']
 
-training_x = training.drop(['average_sale_price','retail_price','ticker'], axis=1)
-training_y = training['average_sale_price']
+    # create test set
+    test = df[0:int(len(df)*.2)]
+    training = df[int(len(df)*.2):]
 
-test_x = test.drop(['average_sale_price','retail_price','ticker'], axis=1)
-test_y = test['average_sale_price']
+    training_x = training.drop(['average_sale_price','ticker'], axis=1)
+    training_y = training['average_sale_price']
 
-#pca = PCA(n_components='mle')
-#pca_df_x = pca.fit_transform(df_x, df_y)
-#print("n_components", pca.n_components_)
-#print("COVARIANCE", pca.get_covariance())
+    test_x = test.drop(['average_sale_price','ticker'], axis=1)
+    test_y = test['average_sale_price']
+
+    #svr = SVR()
+    #param_dist = {
+        #'kernel':['linear','poly'],
+        #'gamma':['scale','auto'],
+        #'degree':[1,2,3,4,5,6,7],
+        #'C':[.0001,.001,.01,.1,1,10,100,1000],
+        #'epsilon':[.0001,.001,.01,.1,1,10,100,1000]
+    #}
+
+    #gscv = GridSearchCV(estimator=svr, param_grid=param_dist, cv=7,
+    #                    verbose=3)
+    #gscv.fit(df_x, df_y)
+
+    ## best performing SVR
+    #svr = SVR(C=1, degree=5, epsilon=10, gamma='scale', kernel='poly')
+    #
+    #pprint(scores := cross_val_score(svr, df_x, df_y, cv=7, scoring='neg_mean_squared_log_error'))
+    #print((np.array(scores).mean()*-1)**(1/2))
+
+    # define the search
+    search = StructuredDataRegressor(max_trials=15, loss='mean_absolute_error')
+    search.fit(df_x, df_y, verbose=1)
+
+#    mae = search.evaluate(test_x, test_y, verbose=1)
+#    print('mae',mae)
 #
-#svr = SVR()
-#param_dist = {
-    #'kernel':['linear','poly'],
-    #'gamma':['scale','auto'],
-    #'degree':[1,2,3,4,5,6,7],
-    #'C':[.0001,.001,.01,.1,1,10,100,1000],
-    #'epsilon':[.0001,.001,.01,.1,1,10,100,1000]
-#}
+    model = search.export_model()
+    model.save('autokeras_out')
 
-#gscv = GridSearchCV(estimator=svr, param_grid=param_dist, cv=7,
-#                    verbose=3)
-#gscv.fit(df_x, df_y)
-#
-svr = SVR(C=1, degree=5, epsilon=10, gamma='scale', kernel='poly')
-#
-pprint(scores := cross_val_score(svr, df_x, df_y, cv=7))
-print(np.array(scores).mean())
-
-# SVR 
-#svr.fit(training_x, training_y)
-#test_y_hat = svr.predict(test_x)
-#test_y_hat_df = pd.DataFrame(test_y_hat)
-#test_y_hat_df['average_sale_price_hat'] = test_y_hat_df[0]
-#test_y_hat_df = test_y_hat_df.drop(0,axis=1)
-#test_y_hat_df['ticker'] = test['ticker']
-#
-#print(test_y_hat_df)
-#print(test_x)
-#print(test)
-#out_df = test_y_hat_df.merge(test.drop('average_sale_price',axis=1),on=None)
-#out_df.to_csv('./test_y_hat')
-#print(out_df)
-
+if __name__ == '__main__':
+    main()
