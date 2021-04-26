@@ -39,11 +39,22 @@ def clean_sneaker_data_for_ml(df):
 
 
     return df
+#
+# divides every value with pixel in the column name 
+def normalize_pixels(df):
+    pixel_df = df.filter(regex='pixel')
+    pixel_df = pixel_df/255
+
+    pixel_df['retail_price'] = df['retail_price']
+    pixel_df['average_sale_price'] = df['average_sale_price']
+    pixel_df['ticker'] = df['ticker']
+    return pixel_df
+
 
 # INTENDED TO BE USED ON TRAINING SET
 # 
 # normalizes every column except average_sale_price and returns an unlabeled dataframe
-def normalize_pixels(training_df, min_max_scaler=None):
+def normalize_pixels_old(training_df, min_max_scaler=None):
     x = training_df.drop(['average_sale_price','retail_price','ticker'],axis=1).values
     if (min_max_scaler is None):
         min_max_scaler = preprocessing.MinMaxScaler()
@@ -110,10 +121,11 @@ def main():
     from sklearn.model_selection import cross_val_score
     from sklearn.decomposition import PCA
     from sklearn.svm import SVR
+    import joblib
 
     df = load_df('./training_aj1.csv')
     # normalize training set
-    df, min_max_scaler = normalize_pixels(df)
+    df = normalize_pixels(df)
     df_x = df.drop(['average_sale_price','ticker'], axis=1)
     df_y = df['average_sale_price']
 
@@ -147,14 +159,14 @@ def main():
     #print((np.array(scores).mean()*-1)**(1/2))
 
     # define the search
-    search = StructuredDataRegressor(max_trials=15, loss='mean_absolute_error')
+    search = StructuredDataRegressor(max_trials=200, loss='mean_absolute_error')
     search.fit(df_x, df_y, verbose=1)
 
 #    mae = search.evaluate(test_x, test_y, verbose=1)
 #    print('mae',mae)
 #
     model = search.export_model()
-    model.save('autokeras_out')
+    model.save('autokeras_out_2')
 
 if __name__ == '__main__':
     main()

@@ -7,16 +7,17 @@ import sys
 import numpy as np
 import autokeras as ak
 from tensorflow import keras
+import joblib
 
 # load model
-loaded_model = keras.models.load_model("./autokeras_out/", custom_objects=ak.CUSTOM_OBJECTS)
+loaded_model = keras.models.load_model("./autokeras_out_2/", custom_objects=ak.CUSTOM_OBJECTS)
 
 # load validation_set
 train_df = load_df('./training_aj1.csv')
 df_mean = train_df['average_sale_price'].mean()
 
 df = load_df('./validation_aj1.csv')
-df, min_max_scaler = normalize_pixels(df)
+df = normalize_pixels(df)
 df_x = df.drop(['average_sale_price','ticker'], axis=1)
 df_y = df['average_sale_price']
 
